@@ -18,7 +18,7 @@ NUSCENES_CLASS_NAMES = [
     'bicycle', 'traffic_cone', 'barrier'
 ]
 
-STATIC_CLASSES = ['drivable_area', 'ped_crossing', 'walkway', 'carpark_area']
+STATIC_CLASSES = ['drivable_area', 'ped_crossing', 'walkway', 'carpark_area','road_segment', 'lane']
 
 LOCATIONS = ['boston-seaport', 'singapore-onenorth', 'singapore-queenstown',
              'singapore-hollandvillage']

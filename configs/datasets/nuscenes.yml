@@ -1,7 +1,7 @@
 train_dataset: nuscenes
-dataroot: ${DATA_ROOT}/nuscenes
-nuscenes_version: v1.0-trainval
-label_root: ${PROCESSED_ROOT}/nuscenes/map-labels-v1.2
+dataroot: /ocean/projects/cis220039p/cherieho/data/datasets/nuscenes_mini
+nuscenes_version: v1.0-mini
+label_root: /ocean/projects/cis220039p/cherieho/data/datasets/nuscenes_mini_processed
 img_size: [800, 600]
 num_class: 14
 class_weights:

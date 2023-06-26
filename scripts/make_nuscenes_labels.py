@@ -8,6 +8,8 @@ from collections import OrderedDict
 from shapely.strtree import STRtree
 from nuscenes import NuScenes
 from nuscenes.map_expansion.map_api import NuScenesMap
+from matplotlib import pyplot as plt 
+import cv2
 
 sys.path.append(os.path.abspath(os.path.join(__file__, '../..')))
 
@@ -59,22 +61,44 @@ def process_sample_data(nuscenes, map_data, sample_data, lidar, config):
                                             sample_data, 
                                             config.map_extents, 
                                             config.map_resolution)
-    masks = np.concatenate([map_masks, obj_masks], axis=0)
+    # map_masks: (6,196, 200)    
+    # obj_masks: (11, 196,200)                                    
+    masks = np.concatenate([map_masks, obj_masks], axis=0) # (15, 196, 200)
 
+
+    plt_row = 3
+    plt_col = 6
+
+    masks_title = nusc_utils.STATIC_CLASSES + nusc_utils.NUSCENES_CLASS_NAMES + ['others']
+    # import time 
+    # start_time = time.time()
+    # plt.clf()
+    # for map_i in range(masks.shape[0]):
+    #     plt.subplot(plt_row, plt_col, map_i+1)
+
+    #     plt.imshow(masks[map_i].astype(np.int32)*255)
+    #     plt.title(masks_title[map_i])
+    # plt.savefig(os.path.join(os.path.expandvars(config.label_root), 'all_' + 
+    #                         sample_data['token'] + '.png'))
+    cv2.imwrite(os.path.join(os.path.expandvars(config.label_root), 'road_' + sample_data['token'] + '.png'),
+                    (masks[4] | masks[5]).astype(np.int32)*255)
+    # print("Time taken (s):", np.round(time.time() - start_time, 2))
+
+    # import pdb; pdb.set_trace()
     # Ignore regions of the BEV which are outside the image
-    sensor = nuscenes.get('calibrated_sensor', 
-                          sample_data['calibrated_sensor_token'])
-    intrinsics = np.array(sensor['camera_intrinsic'])
-    masks[-1] |= ~get_visible_mask(intrinsics, sample_data['width'], 
-                                   config.map_extents, config.map_resolution)
+    # sensor = nuscenes.get('calibrated_sensor', 
+    #                       sample_data['calibrated_sensor_token'])
+    # intrinsics = np.array(sensor['camera_intrinsic'])
+    # masks[-1] |= ~get_visible_mask(intrinsics, sample_data['width'], 
+    #                                config.map_extents, config.map_resolution)
     
-    # Transform lidar points into camera coordinates
-    cam_transform = nusc_utils.get_sensor_transform(nuscenes, sample_data)
-    cam_points = transform(np.linalg.inv(cam_transform), lidar)
-    masks[-1] |= get_occlusion_mask(cam_points, config.map_extents,
-                                    config.map_resolution)
+    # # Transform lidar points into camera coordinates
+    # cam_transform = nusc_utils.get_sensor_transform(nuscenes, sample_data)
+    # cam_points = transform(np.linalg.inv(cam_transform), lidar)
+    # masks[-1] |= get_occlusion_mask(cam_points, config.map_extents,
+    #                                 config.map_resolution)
     
-    # Encode masks as integer bitmask
+    # # Encode masks as integer bitmask
     labels = encode_binary_labels(masks)
 
     # Save outputs to disk
