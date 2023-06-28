@@ -15,7 +15,7 @@ def say_hi():
     print('hi tigu')
 
 
-def get_scene_tokens(nusc, location):
+def get_scene_tokens(nusc, location, remove_blacklist=True):
     """
     Given a location, return a list of scene tokens in that location.
     """
@@ -24,7 +24,7 @@ def get_scene_tokens(nusc, location):
 
     # Filter scenes given logs.
     scene_tokens_in_location = [e['token'] for e in nusc.scene if e['log_token'] in log_tokens]
-    scene_blacklist = [499, 515, 517] # all in boston-seaport
+    scene_blacklist = [499, 515, 517] # 2 are in boston-seaport
 
     for scene_token in scene_tokens_in_location:
         scene_name = nusc.get('scene', scene_token)['name']
@@ -32,6 +32,11 @@ def get_scene_tokens(nusc, location):
 
         if scene_id in scene_blacklist:
             print('Warning: %s is known to have a bad fit between ego pose and map.' % scene_name)
+            if remove_blacklist:
+                print('Removing %s from list of scenes.' % scene_name)
+                scene_tokens_in_location.remove(scene_token)
+            else:
+                print('remove_blacklist is set to False, not removing %s from list of scenes.' % scene_name)
 
     # TODO: add a toggle to remove scenes in blacklist
     return scene_tokens_in_location
@@ -68,6 +73,7 @@ def get_train_test_split_dict_from_testpoint(poselist_dict, test_point, dist_thr
     split_dict = {}
     num_train = 0
     num_test = 0
+    print('getting test split')
 
     for scene_token, pose_list in tqdm(poselist_dict.items(), desc='Get train/test split'):
         # Get closest distance over the scene to test point
@@ -80,8 +86,9 @@ def get_train_test_split_dict_from_testpoint(poselist_dict, test_point, dist_thr
             split_dict[scene_token] = 1
             num_test += 1
 
-    print('# Train Scenes: %d' % num_train)
-    print('# Test Scenes: %d' % num_test)
+    print('# Total Scenes:', num_train + num_test)
+    print('# Train Scenes: {num_train}, {perc_train}% of total'.format(num_train=num_train, perc_train=np.round(num_train/(num_train+num_test)*100)))
+    print('# Test Scenes: {num_test}, {perc_test}% of total'.format(num_test=num_test, perc_test=np.round(num_test/(num_train+num_test)*100)))
 
     return split_dict
     
@@ -109,6 +116,10 @@ def plot_traj_colored_by_traintest(poselist_dict, split_dict, test_point, dist_t
     # Add title given location
     plt.title('Trajectories in {map_location} within {dist_threshold}m of test point.'.format(map_location=location, dist_threshold=dist_threshold))
 
+    # Add axis
+    plt.axis('equal')
+    plt.xlabel('x (m)')
+    plt.ylabel('y (m)')
 
     plt.show()
 

@@ -1,0 +1,13 @@
+---
+singapore-onenorth:
+  test_point: [350, 900]
+  dist_threshold: 200
+boston-seaport:
+  test_point: [1200, 1500]
+  dist_threshold: 200
+singapore-hollandvillage:
+  test_point: [1500, 1300]
+  dist_threshold: 200
+singapore-queenstown:
+  test_point: [700, 1500]
+  dist_threshold: 200
