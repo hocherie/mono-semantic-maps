@@ -37,12 +37,13 @@ def get_map_masks(nuscenes, map_data, sample_data, extents, resolution):
     # Render each layer sequentially
     layers = [get_layer_mask(nuscenes, polys, sample_data, extents, 
               resolution) for layer, polys in map_data.items()]
+    # Render the first layer of map_data
+    # layers = [get_layer_mask(nuscenes, map_data['drivable_area'], sample_data, extents,resolution)]
 
     return np.stack(layers, axis=0)
 
 
 def get_layer_mask(nuscenes, polygons, sample_data, extents, resolution):
-
     # Get the 2D affine transform from bev coords to map coords
     tfm = get_sensor_transform(nuscenes, sample_data)[[0, 1, 3]][:, [0, 2, 3]]
     inv_tfm = np.linalg.inv(tfm)
@@ -57,7 +58,7 @@ def get_layer_mask(nuscenes, polygons, sample_data, extents, resolution):
                     dtype=np.uint8)
 
     # Find all polygons which intersect with the area of interest
-    for polygon in polygons.query(map_patch):
+    for poly_i, polygon in enumerate(polygons.query(map_patch)):
 
         polygon = polygon.intersection(map_patch)
         
@@ -67,7 +68,7 @@ def get_layer_mask(nuscenes, polygons, sample_data, extents, resolution):
         # Render the polygon to the mask
         render_shapely_polygon(mask, polygon, extents, resolution)
     
-    return mask.astype(np.bool)
+    return mask.astype(bool)
 
 
 
@@ -100,7 +101,7 @@ def get_object_masks(nuscenes, sample_data, extents, resolution):
         # Render the rotated bounding box to the mask
         render_polygon(masks[class_id], local_bbox, extents, resolution)
     
-    return masks.astype(np.bool)
+    return masks.astype(bool)
 
 
 def get_sensor_transform(nuscenes, sample_data):
@@ -136,19 +137,24 @@ def make_transform_matrix(record):
 
 
 def render_shapely_polygon(mask, polygon, extents, resolution):
-
+    # print('hi')
     if polygon.geom_type == 'Polygon':
+        # pass
 
-        # Render exteriors
+        # # Render exteriors
+        # print('rendering exterior')
         render_polygon(mask, polygon.exterior.coords, extents, resolution, 1)
 
-        # Render interiors
+        # # Render interiors
         for hole in polygon.interiors:
+            # print('rendering hole')
             render_polygon(mask, hole.coords, extents, resolution, 0)
     
     # Handle the case of compound shapes
     else:
-        for poly in polygon:
+        # print('handling compound shape')
+        for poly_i, poly in enumerate(polygon):
+            # if poly_i == 0: #! onlhy for debugging hollow shapes
             render_shapely_polygon(mask, poly, extents, resolution)
 
 

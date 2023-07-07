@@ -53,7 +53,7 @@ def process_sample(nuscenes, map_data, sample, config):
         process_sample_data(nuscenes, map_data, sample_data, lidar_pcl, config)
 
 
-def process_sample_data(nuscenes, map_data, sample_data, lidar, config):
+def process_sample_data(nuscenes, map_data, sample_data, lidar, config, save_path=True, show_viz=False):
 
     # Only process for cam front
     cam_img_filename = sample_data['filename']
@@ -76,16 +76,45 @@ def process_sample_data(nuscenes, map_data, sample_data, lidar, config):
         # map_masks: (6,196, 200)    
         # obj_masks: (11, 196,200)                                    
         masks = np.concatenate([map_masks, obj_masks], axis=0) # (15, 196, 200)
+        layer_names = nusc_utils.STATIC_CLASSES + nusc_utils.NUSCENES_CLASS_NAMES + ['Unknown']
 
 
         cam_img_filepath = config.dataroot + '/' + sample_data['filename']
         cam_img = cv2.imread(cam_img_filepath)
-        cv2.imwrite(os.path.join(os.path.expandvars(config.label_root), 'cam', str(sample_data['sample_token']) + '.png'),
-                    cam_img)
-        
-        # TODO: confirm map masks are correct (currently combingin masks[4] and masks[5])
-        cv2.imwrite(os.path.join(os.path.expandvars(config.label_root), 'map', str(sample_data['sample_token']) + '.png'),
-                        ((masks[4] | masks[5]).astype(np.int32)*255).transpose())
+
+        # output_mask =  ((masks[4] | masks[5]).astype(np.int32)*255).transpose()
+        output_mask = (masks[0].astype(np.int32)*255).transpose()
+
+        if save_path:
+            cv2.imwrite(os.path.join(os.path.expandvars(config.label_root), 'cam', str(sample_data['sample_token']) + '.png'),
+                        cam_img)
+            
+            # TODO: confirm map masks are correct (currently combingin masks[4] and masks[5])
+            cv2.imwrite(os.path.join(os.path.expandvars(config.label_root), 'map', str(sample_data['sample_token']) + '.png'),
+                           output_mask)
+        if show_viz:
+            # Show camera image and associated output BEV map
+            num_row = 1
+            num_col = 2
+            plt.subplot(num_row,num_col,1)
+            plt.imshow(cam_img)
+            plt.subplot(num_row,num_col,2)
+            plt.imshow(output_mask)
+            plt.show()
+
+            ## Show each layer of mask in a grid with title as layer name
+            num_row = 6
+            num_col = 3
+            fig, axs = plt.subplots(num_row, num_col, figsize=(15, 15))
+            for i in range(num_row):
+                for j in range(num_col):
+                    img_num = i*num_col+j
+                    if img_num < masks.shape[0]:
+                        axs[i,j].imshow(masks[img_num])
+                        axs[i,j].set_title(str(img_num) + ': ' + layer_names[img_num])
+            plt.show()
+
+
         # print(sample_data['timestamp'])
         # print("Time taken (s):", np.round(time.time() - start_time, 2))
 
@@ -155,18 +184,23 @@ if __name__ == '__main__':
     global nuscenes, map_data, config
 
     # Load the default configuration
+    print("Loading configuration...")
     config = get_default_configuration()
     config.merge_from_file('configs/datasets/nuscenes.yml')
+    print("Loaded config")
 
     # Load NuScenes dataset
+    print("Loading NuScenes dataset...")
     dataroot = os.path.expandvars(config.dataroot)
     nuscenes = NuScenes(config.nuscenes_version, dataroot)
 
     # Preload NuScenes map data
+    print("Loading NuScenes map data...")
     map_data = { location : load_map_data(dataroot, location) 
                  for location in nusc_utils.LOCATIONS }
     
     # Create a directory for the generated labels
+    print("Creating output directory...")
     output_root = os.path.expandvars(config.label_root)
     os.makedirs(output_root, exist_ok=True)
     os.makedirs(output_root + '/cam/', exist_ok=True)
@@ -176,7 +210,7 @@ if __name__ == '__main__':
     # Iterate over NuScene scenes
     print("\nGenerating labels...")
 
-    r = process_map(process_scene, nuscenes.scene, max_workers=4)
+    r = process_map(process_scene, nuscenes.scene, max_workers=16)
     # r = p_map(process_scene, nuscenes, map_data, nuscenes.scene, config)
     # for scene in tqdm(nuscenes.scene):
     #     process_scene(nuscenes, map_data, scene, config)

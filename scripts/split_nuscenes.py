@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import yaml
 import shutil
+from tqdm.contrib.concurrent import process_map  # or thread_map
 
 import sys 
 import os 
@@ -229,7 +230,16 @@ def create_output_folders(output_folder_path, split_config_dict):
 
     print('Output directories created or already exists')
 
+def process_sensor_token(sample_token):
+    for cam_or_map in ['cam', 'map']:
+        old_path_sample, new_path_sample = get_paths_given_sample_token(sample_token, cam_or_map, nusc, split_dict_all_locations, input_folder_path, output_folder_path)
+        if new_path_sample is not None: # if it is valid. normally invalid, because is_test info does not exist
+            # copy image from old path to new path
+            shutil.copy(old_path_sample, new_path_sample)
+
 # if __name__ ==' __main__':
+global split_dict_all_locations, nusc, input_folder_path, output_folder_path # global variables for multiprocessing
+
 # generally trainval takes 1 minute to initialize
 dataroot = '/ocean/projects/cis220039p/cherieho/data/datasets/nuscenes/nuscenes_full'
 nusc = NuScenes(version='v1.0-trainval', dataroot=dataroot, verbose=True)
@@ -239,10 +249,11 @@ nusc = NuScenes(version='v1.0-trainval', dataroot=dataroot, verbose=True)
 # Test point decision rationale: 
 # R1: target around 10% of total scenes being test
 # R2: decent amount of corners and turns (not just straightaways)
-split_config = '../configs/nuscenes_split/test_0628.yml'
+split_config = 'configs/nuscenes_split/test_0628.yml'
 
 with open(split_config, 'r') as file:
     split_config_dict = yaml.safe_load(file)
+
 
 split_dict_all_locations = {}
 for location in split_config_dict.keys():
@@ -255,17 +266,15 @@ for location in split_config_dict.keys():
     # plot_traj_colored_by_traintest(posedict, split_dict, test_point, dist_threshold, location)
 
 
-input_folder_path = '/ocean/projects/cis220039p/cherieho/data/datasets/nuscenes/nuscenes_full_intermprocessed_alllog_camfront_map_0629'
-output_folder_path = '/ocean/projects/cis220039p/cherieho/data/datasets/nuscenes/nuscenes_processed_camfrontmap_0629'
+input_folder_path = '/ocean/projects/cis220039p/cherieho/data/datasets/nuscenes/nuscenes_full_intermprocessed_alllog_camfront_map_0706'
+output_folder_path = '/ocean/projects/cis220039p/cherieho/data/datasets/nuscenes/nuscenes_processed_camfrontmap_0706'
 
 # Create output folder
 create_output_folders(output_folder_path, split_config_dict)
 
 # Given files in input folder, copy into new folder
 sample_tokens = get_sample_token_list_from_folder(input_folder_path)
-for sample_token in tqdm(sample_tokens):
-    for cam_or_map in ['cam', 'map']:
-        old_path_sample, new_path_sample = get_paths_given_sample_token(sample_token, cam_or_map, nusc, split_dict_all_locations, input_folder_path, output_folder_path)
-        if new_path_sample is not None: # if it is valid. normally invalid, because is_test info does not exist
-            # copy image from old path to new path
-            shutil.copy(old_path_sample, new_path_sample)
+
+print("\nCopying files to correct train/test split folders...")
+
+r = process_map(process_sensor_token, sample_tokens, max_workers=16)
